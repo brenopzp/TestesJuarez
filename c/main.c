@@ -24,7 +24,8 @@ int verificar(int port_num)
 
     if (resultado != COMM_SUCCESS)
     {
-        printTxRxResult(PROTOCOL_VERSION, resultado);
+        printf("Erro de comunicacao: %s\n",
+            getTxRxResult(PROTOCOL_VERSION, resultado));
         return 0;
     }
 
@@ -34,11 +35,10 @@ int verificar(int port_num)
 
     if (erro != 0)
     {
-        printRxPacketError(PROTOCOL_VERSION, erro);
+        printf("Erro do motor: %s\n",
+            getRxPacketError(PROTOCOL_VERSION, erro));
         return 0;
     }
-
-    return 1;
 }
 
 int main(void)
