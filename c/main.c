@@ -43,8 +43,11 @@ int verificar(int port_num)
     return 1;
 }
 
-int main(void)
-{
+int main(void) {
+
+    printf("INICIO DO PROGRAMA\n");
+    fflush(stdout);
+
     int port_num = portHandler(DEVICENAME);
     packetHandler();
 
