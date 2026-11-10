@@ -5,7 +5,7 @@
 #include "dynamixel_sdk/dynamixel_sdk.h"
 
 #define DEVICENAME "COM3"
-#define BAUDRATE 57600
+#define BAUDRATE 1000000
 #define PROTOCOL_VERSION 2.0
 
 #define ID_TEST 1
