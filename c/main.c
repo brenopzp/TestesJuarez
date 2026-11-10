@@ -72,12 +72,14 @@ int main(void) {
         ID_TEST, ADDR_OPERATING_MODE
     );
 
-    if (!verificar(port_num) || modo != 3)
+    printf("Modo de operacao lido: %u\n", modo);
+
+    if (!verificar(port_num) || modo !=3)
     {
         printf("Motor nao esta no Position Control Mode!\n");
         closePort(port_num);
         return 1;
-    }
+    } 
 
     // Verifica o torque
     uint8_t torque = read1ByteTxRx(
@@ -146,11 +148,13 @@ int main(void) {
         return 1;
     }
 
-    // Deslocamento pequeno de 20 unidades
-    uint32_t alvo = (posicao <= 4075)
-                    ? posicao + 20
-                    : posicao - 20;
+    uint32_t alvo = posicao + 1000;
 
+    if (alvo > 4095)
+    {
+        alvo = posicao - 1000;
+    }
+    
     printf("Movendo para: %u\n", alvo);
 
     write4ByteTxRx(
