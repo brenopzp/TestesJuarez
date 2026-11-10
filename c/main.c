@@ -4,7 +4,7 @@
 #include <windows.h>
 #include "dynamixel_sdk/dynamixel_sdk.h"
 
-#define DEVICENAME "COM2"
+#define DEVICENAME "COM10"
 #define BAUDRATE 1000000
 #define PROTOCOL_VERSION 2.0
 
