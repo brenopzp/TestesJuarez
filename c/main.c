@@ -10,7 +10,7 @@
 
 #define PROTOCOL_VERSION         2.0
 #define BAUDRATE                 1000000
-#define DEVICENAME               "COM3"
+#define DEVICENAME               "COM10"
 
 // Right arm motor IDs
 #define ID_M1                    1
@@ -27,7 +27,8 @@ int check_errors(int port_num)
 
     if (result != COMM_SUCCESS)
     {
-        printTxRxResult(PROTOCOL_VERSION, result);
+        printf("Erro de comunicacao: %s\n",
+               getTxRxResult(PROTOCOL_VERSION, result));
         return 0;
     }
 
@@ -35,7 +36,8 @@ int check_errors(int port_num)
 
     if (error != 0)
     {
-        printRxPacketError(PROTOCOL_VERSION, error);
+        printf("Erro do motor: %s\n",
+               getRxPacketError(PROTOCOL_VERSION, error));
         return 0;
     }
 
@@ -72,13 +74,35 @@ int set_torque(int port_num, uint8_t id, uint8_t state)
 
 int main(void)
 {
-    int port_num;
+    
+    // int port_num;
     int i;
     int success = 1;
 
+        printf("1 - INICIO\n");
+    fflush(stdout);
+
+    int port_num = portHandler(DEVICENAME);
+    printf("2 - portHandler OK\n");
+    fflush(stdout);
+
+    packetHandler();
+    printf("3 - packetHandler OK\n");
+    fflush(stdout);
+
+    if (!openPort(port_num))
+    {
+        printf("4 - ERRO ao abrir a porta!\n");
+        return 1;
+    }
+
+    printf("4 - PORTA ABERTA\n");
+    fflush(stdout);
+
+
     uint8_t motors[] = {ID_M1, ID_M3, ID_M5};
 
-    port_num = portHandler(DEVICENAME);
+   // port_num = portHandler(DEVICENAME);
     packetHandler();
 
     // 1. Open port
