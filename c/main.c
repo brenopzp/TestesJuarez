@@ -1,187 +1,184 @@
+
 #include <stdio.h>
 #include <stdint.h>
 #include <windows.h>
 #include "dynamixel_sdk/dynamixel_sdk.h"
 
-// Control table addresses
-#define ADDR_TORQUE_ENABLE       64
-#define ADDR_GOAL_POSITION       116
-#define ADDR_PRESENT_POSITION    132
+#define DEVICENAME "COM3"
+#define BAUDRATE 57600
+#define PROTOCOL_VERSION 2.0
 
-#define PROTOCOL_VERSION         2.0
-#define BAUDRATE                 1000000
-#define DEVICENAME               "COM3"
+#define ID_TEST 1
 
-// Right arm motor IDs
-#define ID_M1                    1
-#define ID_M3                    3
-#define ID_M5                    5
+#define ADDR_TORQUE_ENABLE 64
+#define ADDR_OPERATING_MODE 11
+#define ADDR_GOAL_POSITION 116
+#define ADDR_PRESENT_POSITION 132
 
-// Checks communication and motor errors
-int check_errors(int port_num)
+// Verifica a comunicacao
+int verificar(int port_num)
 {
-    int result;
-    uint8_t error;
+    int resultado = getLastTxRxResult(
+        port_num, PROTOCOL_VERSION
+    );
 
-    result = getLastTxRxResult(port_num, PROTOCOL_VERSION);
-
-    if (result != COMM_SUCCESS)
+    if (resultado != COMM_SUCCESS)
     {
-        printTxRxResult(PROTOCOL_VERSION, result);
+        printTxRxResult(PROTOCOL_VERSION, resultado);
         return 0;
     }
 
-    error = getLastRxPacketError(port_num, PROTOCOL_VERSION);
+    uint8_t erro = getLastRxPacketError(
+        port_num, PROTOCOL_VERSION
+    );
 
-    if (error != 0)
+    if (erro != 0)
     {
-        printRxPacketError(PROTOCOL_VERSION, error);
+        printRxPacketError(PROTOCOL_VERSION, erro);
         return 0;
     }
 
     return 1;
 }
 
-// Sends position command
-int move(int port_num, uint8_t id, uint32_t position)
-{
-    write4ByteTxRx(
-        port_num,
-        PROTOCOL_VERSION,
-        id,
-        ADDR_GOAL_POSITION,
-        position
-    );
-
-    return check_errors(port_num);
-}
-
-// Enables or disables torque
-int set_torque(int port_num, uint8_t id, uint8_t state)
-{
-    write1ByteTxRx(
-        port_num,
-        PROTOCOL_VERSION,
-        id,
-        ADDR_TORQUE_ENABLE,
-        state
-    );
-
-    return check_errors(port_num);
-}
-
 int main(void)
 {
-    int port_num;
-    int i;
-    int success = 1;
-
-    uint8_t motors[] = {ID_M1, ID_M3, ID_M5};
-
-    port_num = portHandler(DEVICENAME);
+    int port_num = portHandler(DEVICENAME);
     packetHandler();
 
-    // 1. Open port
     if (!openPort(port_num))
     {
-        printf("Error opening port %s\n", DEVICENAME);
+        printf("Erro ao abrir a porta!\n");
         return 1;
     }
 
-    // 2. Configure baudrate
     if (!setBaudRate(port_num, BAUDRATE))
     {
-        printf("Error configuring baudrate!\n");
+        printf("Erro no baud rate!\n");
         closePort(port_num);
         return 1;
     }
 
-    printf("Communication established!\n");
+    printf("Comunicacao estabelecida!\n");
 
-    // 3. Enable motor torque
-    for (i = 0; i < 3; i++)
+    // Verifica o modo de operacao
+    uint8_t modo = read1ByteTxRx(
+        port_num, PROTOCOL_VERSION,
+        ID_TEST, ADDR_OPERATING_MODE
+    );
+
+    if (!verificar(port_num) || modo != 3)
     {
-        if (!set_torque(port_num, motors[i], 1))
+        printf("Motor nao esta no Position Control Mode!\n");
+        closePort(port_num);
+        return 1;
+    }
+
+    // Verifica o torque
+    uint8_t torque = read1ByteTxRx(
+        port_num, PROTOCOL_VERSION,
+        ID_TEST, ADDR_TORQUE_ENABLE
+    );
+
+    if (!verificar(port_num))
+    {
+        closePort(port_num);
+        return 1;
+    }
+
+    // Le a posicao atual
+    uint32_t posicao = read4ByteTxRx(
+        port_num, PROTOCOL_VERSION,
+        ID_TEST, ADDR_PRESENT_POSITION
+    );
+
+    if (!verificar(port_num) || posicao > 4095)
+    {
+        printf("Posicao invalida para o teste!\n");
+        closePort(port_num);
+        return 1;
+    }
+
+    printf("Posicao atual: %u\n", posicao);
+
+    // Se o torque estiver desligado, prepara
+    // o alvo atual antes de ativa-lo.
+    if (torque == 0)
+    {
+        write4ByteTxRx(
+            port_num, PROTOCOL_VERSION,
+            ID_TEST, ADDR_GOAL_POSITION, posicao
+        );
+
+        if (!verificar(port_num))
         {
-            success = 0;
-            break;
+            closePort(port_num);
+            return 1;
+        }
+
+        write1ByteTxRx(
+            port_num, PROTOCOL_VERSION,
+            ID_TEST, ADDR_TORQUE_ENABLE, 1
+        );
+
+        if (!verificar(port_num))
+        {
+            closePort(port_num);
+            return 1;
         }
     }
 
-    // 4. Prepare arm
-    if (success)
+    // Le novamente a posicao
+    posicao = read4ByteTxRx(
+        port_num, PROTOCOL_VERSION,
+        ID_TEST, ADDR_PRESENT_POSITION
+    );
+
+    if (!verificar(port_num) || posicao > 4095)
     {
-        printf("Preparing the arm...\n");
-
-        if (!move(port_num, ID_M1, 2048))
-            success = 0;
-
-        if (success && !move(port_num, ID_M3, 2800))
-            success = 0;
-
-        if (success && !move(port_num, ID_M5, 1400))
-            success = 0;
-
-        if (success)
-            Sleep(1500);
+        printf("Erro ao ler a posicao!\n");
+        closePort(port_num);
+        return 1;
     }
 
-    // 5. Waving movement
-    if (success)
+    // Deslocamento pequeno de 20 unidades
+    uint32_t alvo = (posicao <= 4075)
+                    ? posicao + 20
+                    : posicao - 20;
+
+    printf("Movendo para: %u\n", alvo);
+
+    write4ByteTxRx(
+        port_num, PROTOCOL_VERSION,
+        ID_TEST, ADDR_GOAL_POSITION, alvo
+    );
+
+    if (!verificar(port_num))
     {
-        printf("Starting waving movement...\n");
-
-        for (i = 0; i < 4; i++)
-        {
-            if (!move(port_num, ID_M5, 1100))
-            {
-                success = 0;
-                break;
-            }
-
-            Sleep(350);
-
-            if (!move(port_num, ID_M5, 1700))
-            {
-                success = 0;
-                break;
-            }
-
-            Sleep(350);
-        }
+        closePort(port_num);
+        return 1;
     }
 
-    // 6. Return to initial position
-    if (success)
+    Sleep(1000);
+
+    // Retorna a posicao original
+    write4ByteTxRx(
+        port_num, PROTOCOL_VERSION,
+        ID_TEST, ADDR_GOAL_POSITION, posicao
+    );
+
+    if (!verificar(port_num))
     {
-        printf("Returning to initial position...\n");
-
-        if (!move(port_num, ID_M5, 2048))
-            success = 0;
-
-        if (success && !move(port_num, ID_M3, 2048))
-            success = 0;
-
-        if (success && !move(port_num, ID_M1, 2048))
-            success = 0;
-
-        if (success)
-            Sleep(1500);
+        closePort(port_num);
+        return 1;
     }
 
-    // 7. Disable torque
-    for (i = 0; i < 3; i++)
-    {
-        set_torque(port_num, motors[i], 0);
-    }
+    Sleep(1000);
 
-    // 8. Close communication
+    printf("Teste concluido!\n");
+
+    // Mantem o torque ligado para sustentar a posicao.
     closePort(port_num);
 
-    if (success)
-        printf("Movement completed!\n");
-    else
-        printf("An error occurred during execution!\n");
-
-    return success ? 0 : 1;
+    return 0;
 }
