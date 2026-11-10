@@ -17,6 +17,10 @@
 #define ID_M3                    3
 #define ID_M5                    5
 
+#define M1_INICIAL  2048
+#define M3_INICIAL  2500
+#define M5_INICIAL  1500
+
 // Checks communication and motor errors
 int check_errors(int port_num)
 {
@@ -102,7 +106,6 @@ int main(void)
 
     uint8_t motors[] = {ID_M1, ID_M3, ID_M5};
 
-   // port_num = portHandler(DEVICENAME);
     packetHandler();
 
     // 1. Open port
