@@ -4,7 +4,7 @@
 #include <windows.h>
 #include "dynamixel_sdk/dynamixel_sdk.h"
 
-#define DEVICENAME "COM3"
+#define DEVICENAME "COM2"
 #define BAUDRATE 1000000
 #define PROTOCOL_VERSION 2.0
 
@@ -39,6 +39,8 @@ int verificar(int port_num)
             getRxPacketError(PROTOCOL_VERSION, erro));
         return 0;
     }
+
+    return 1;
 }
 
 int main(void)
