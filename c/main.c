@@ -18,8 +18,9 @@
 #define ID_M5                    5
 
 #define M1_INICIAL  2048
-#define M3_INICIAL  2500
-#define M5_INICIAL  1500
+#define M3_INICIAL  2250
+#define M5_INICIAL  1650
+
 
 // Checks communication and motor errors
 int check_errors(int port_num)
@@ -78,22 +79,31 @@ int set_torque(int port_num, uint8_t id, uint8_t state)
 
 int main(void)
 {
-    
-    // int port_num;
     int i;
     int success = 1;
 
-        printf("1 - INICIO\n");
+    uint8_t motors[] = {
+        ID_M1,
+        ID_M3,
+        ID_M5
+    };
+
+    printf("1 - INICIO\n");
     fflush(stdout);
 
+    // 1. Cria o port handler
     int port_num = portHandler(DEVICENAME);
+
     printf("2 - portHandler OK\n");
     fflush(stdout);
 
+    // 2. Inicializa o packet handler
     packetHandler();
+
     printf("3 - packetHandler OK\n");
     fflush(stdout);
 
+    // 3. Abre a porta
     if (!openPort(port_num))
     {
         printf("4 - ERRO ao abrir a porta!\n");
@@ -103,31 +113,22 @@ int main(void)
     printf("4 - PORTA ABERTA\n");
     fflush(stdout);
 
-
-    uint8_t motors[] = {ID_M1, ID_M3, ID_M5};
-
-    packetHandler();
-
-    // 1. Open port
-    if (!openPort(port_num))
-    {
-        printf("Error opening port %s\n", DEVICENAME);
-        return 1;
-    }
-
-    // 2. Configure baudrate
+    // 4. Configura o baudrate
     if (!setBaudRate(port_num, BAUDRATE))
     {
-        printf("Error configuring baudrate!\n");
+        printf("Erro ao configurar baudrate!\n");
         closePort(port_num);
         return 1;
     }
 
     printf("Communication established!\n");
 
-    // 3. Enable motor torque
+    // 5. Liga o torque
     for (i = 0; i < 3; i++)
     {
+        printf("Ativando torque do motor ID %d...\n",
+               motors[i]);
+
         if (!set_torque(port_num, motors[i], 1))
         {
             success = 0;
@@ -135,25 +136,19 @@ int main(void)
         }
     }
 
-    // 4. Prepare arm
+    // 6. Posiciona os motores na pose inicial
     if (success)
     {
-        printf("Preparing the arm...\n");
+// M3 sobe 90 graus anti-horário
+move(port_num, ID_M3, M3_INICIAL + 683);
+Sleep(1000);
 
-        if (!move(port_num, ID_M1, 2048))
-            success = 0;
-
-        if (success && !move(port_num, ID_M3, 2800))
-            success = 0;
-
-        if (success && !move(port_num, ID_M5, 1400))
-            success = 0;
-
-        if (success)
-            Sleep(1500);
+// M1 gira 90 graus anti-horário
+move(port_num, ID_M1, M1_INICIAL + 1024);
+Sleep(1000);
     }
 
-    // 5. Waving movement
+    // 7. Movimento de onda
     if (success)
     {
         printf("Starting waving movement...\n");
@@ -178,37 +173,41 @@ int main(void)
         }
     }
 
-    // 6. Return to initial position
+    // 8. Retorna para a posicao inicial
     if (success)
     {
         printf("Returning to initial position...\n");
 
-        if (!move(port_num, ID_M5, 2048))
+        if (!move(port_num, ID_M5, M5_INICIAL))
             success = 0;
 
-        if (success && !move(port_num, ID_M3, 2048))
+        if (success && !move(port_num, ID_M3, M3_INICIAL))
             success = 0;
 
-        if (success && !move(port_num, ID_M1, 2048))
+        if (success && !move(port_num, ID_M1, M1_INICIAL))
             success = 0;
 
         if (success)
             Sleep(1500);
     }
 
-    // 7. Disable torque
+    // 9. Desliga torque
     for (i = 0; i < 3; i++)
     {
         set_torque(port_num, motors[i], 0);
     }
 
-    // 8. Close communication
+    // 10. Fecha a porta
     closePort(port_num);
 
     if (success)
+    {
         printf("Movement completed!\n");
+        return 0;
+    }
     else
+    {
         printf("An error occurred during execution!\n");
-
-    return success ? 0 : 1;
+        return 1;
+    }
 }
